@@ -1,0 +1,89 @@
+name: API
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+concurrency:
+  group: api-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (PHP ${{ matrix.php }}, PostgreSQL 16)
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Laravel 13 supports PHP 8.3–8.5; CI pins one version to keep signal clean.
+        php: ['8.5']
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: jobflow_api_test
+          POSTGRES_USER: jobflow
+          POSTGRES_PASSWORD: jobflow_local_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U jobflow -d jobflow_api_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: jobflow_api_test
+      DB_USERNAME: jobflow
+      DB_PASSWORD: jobflow_local_dev
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql, pgsql, mbstring, openssl, curl, zip
+          ini-values: memory_limit=512M
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-php-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php-${{ matrix.php }}-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+
+      - name: Check code style (Pint)
+        run: vendor/bin/pint --test
+
+      - name: Run migrations
+        run: php artisan migrate --force
+
+      - name: Run tests
+        run: php artisan test
+
+      # Phase 1: publish the OpenAPI document as an artifact so jobflow-web CI can
+      # regenerate its TypeScript types from the contract (docs/README.md).
