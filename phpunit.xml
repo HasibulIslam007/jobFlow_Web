@@ -43,6 +43,9 @@
         <env name="AI_API_KEY" value=""/>
         <env name="GEMINI_API_KEY" value=""/>
         <env name="OPENAI_API_KEY" value=""/>
+        <!-- Image capture must never reach a real vision model in tests. -->
+        <env name="OCR_PROVIDER" value="fake"/>
+        <env name="OCR_API_KEY" value=""/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

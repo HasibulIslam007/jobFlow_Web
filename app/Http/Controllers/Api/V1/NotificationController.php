@@ -31,6 +31,38 @@ class NotificationController extends Controller
     }
 
     /**
+     * Unread badge count on its own.
+     *
+     * Separate from `index` so the topbar badge can poll cheaply on its own
+     * schedule without pulling the full notification list on every tick.
+     */
+    public function unreadCount(Request $request): JsonResponse
+    {
+        return ApiResponse::success([
+            'unread_count' => $this->notifications->unreadCount($request->user()),
+        ]);
+    }
+
+    /**
+     * Mark every unread notification read.
+     *
+     * One indexed UPDATE; returns the number actually changed so the client
+     * can report honestly instead of assuming it cleared something.
+     */
+    public function readAll(Request $request): JsonResponse
+    {
+        $marked = $this->notifications->markAllRead($request->user());
+
+        return ApiResponse::success([
+            'message' => $marked > 0
+                ? "{$marked} notification(s) marked as read."
+                : 'No unread notifications.',
+            'marked' => $marked,
+            'unread_count' => $this->notifications->unreadCount($request->user()),
+        ]);
+    }
+
+    /**
      * Mark a notification as read (idempotent).
      */
     public function read(Request $request, Notification $notification): JsonResponse

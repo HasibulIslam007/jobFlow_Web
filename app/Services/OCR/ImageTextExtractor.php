@@ -3,6 +3,7 @@
 namespace App\Services\OCR;
 
 use App\Services\OCR\Providers\FakeOCRProvider;
+use App\Services\OCR\Providers\GeminiVisionOCRProvider;
 use App\Services\OCR\Providers\OCRProviderInterface;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -12,7 +13,27 @@ class ImageTextExtractor
     public function __construct(
         protected ?OCRProviderInterface $provider = null
     ) {
-        $this->provider = $provider ?? new FakeOCRProvider;
+        $this->provider = $provider ?? $this->resolveDefaultProvider();
+    }
+
+    /**
+     * Build the configured OCR provider.
+     *
+     * Previously this returned `new FakeOCRProvider` unconditionally, so every
+     * real image capture sent the literal string
+     * "Default simulated OCR text extracted from image." to the extraction
+     * prompt. Resolution now goes through config (`ai.ocr.provider`), and
+     * `OCR_PROVIDER=fake` is set in phpunit.xml so the suite never reaches the
+     * network.
+     */
+    protected function resolveDefaultProvider(): OCRProviderInterface
+    {
+        $config = config('ai.ocr', []);
+
+        return match ($config['provider'] ?? 'fake') {
+            'gemini' => new GeminiVisionOCRProvider($config),
+            default => new FakeOCRProvider,
+        };
     }
 
     /**

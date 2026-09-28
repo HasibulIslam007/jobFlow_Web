@@ -23,7 +23,8 @@ class NotificationService
     /**
      * Persist an in-app notification.
      *
-     * @param  array<string, mixed>|null  $data
+     * @param  array<string, mixed>|null  $data  JSON metadata payload.
+     * @param  string|null  $actionUrl  Frontend route the bell links to.
      */
     public function create(
         User $user,
@@ -31,14 +32,64 @@ class NotificationService
         string $title,
         string $message,
         ?array $data = null,
+        ?string $actionUrl = null,
     ): Notification {
         return $user->notifications()->create([
             'type' => $type,
             'title' => $title,
             'message' => $message,
             'data' => $data,
+            'action_url' => $actionUrl,
             'read_at' => null,
         ]);
+    }
+
+    /**
+     * Create a notification unless an identical one already exists.
+     *
+     * PHASE 6.9 DEDUPE CONTRACT
+     * --------------------------
+     * The generator sweep runs daily and must be safe to re-run — a scheduler
+     * that overlaps itself, or an operator firing the command twice, would
+     * otherwise spam the bell with identical rows.
+     *
+     * Identity is (user, type, metadata.dedupe_key). The key is chosen by the
+     * generator to mean "the same underlying fact" — e.g. `follow_up:17` for
+     * application 17. A follow-up reminder re-fires only once the underlying
+     * record changes, which is why the key embeds what the alert is about
+     * rather than the day it was generated.
+     *
+     * The lookup is a single indexed SELECT; the create only happens on a miss.
+     *
+     * @param  array<string, mixed>|null  $data
+     */
+    public function createIfMissing(
+        User $user,
+        NotificationType $type,
+        string $title,
+        string $message,
+        string $dedupeKey,
+        ?array $data = null,
+        ?string $actionUrl = null,
+    ): ?Notification {
+        $exists = Notification::query()
+            ->where('user_id', $user->getKey())
+            ->where('type', $type->value)
+            ->where('data->dedupe_key', $dedupeKey)
+            ->exists();
+
+        if ($exists) {
+            return null;
+        }
+
+        return $this->create(
+            user: $user,
+            type: $type,
+            title: $title,
+            message: $message,
+            data: ['dedupe_key' => $dedupeKey, ...($data ?? [])],
+            actionUrl: $actionUrl,
+        );
     }
 
     /**
@@ -69,6 +120,22 @@ class NotificationService
         $notification->markAsRead();
 
         return $notification;
+    }
+
+    /**
+     * Mark every unread notification read for a user.
+     *
+     * A single UPDATE rather than a per-row loop: a user with hundreds of
+     * unread rows should cost one query, not hundreds. Returns the number of
+     * rows actually changed so the caller can report honestly ("3 marked
+     * read" rather than "done") and so the operation is a no-op when there is
+     * nothing to do.
+     */
+    public function markAllRead(User $user): int
+    {
+        return $user->notifications()
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
     }
 
     /**

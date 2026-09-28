@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\ApplicationController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DashboardController;
@@ -64,6 +65,11 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             ->middleware('throttle:ai')
             ->name('jobs.analyze');
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+        // AI career analytics (Phase 6.8). One aggregate request drives the
+        // whole /analytics screen: career score, funnel, skill gaps, top roles
+        // and deterministic insights — all derived from the caller's own rows.
+        Route::get('/analytics', AnalyticsController::class)->name('analytics');
         Route::post('/job-captures', [JobCaptureController::class, 'store'])
             ->name('job-captures.store');
 
@@ -100,6 +106,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             ->name('jobs.reminders.store');
         Route::get('/notifications', [NotificationController::class, 'index'])
             ->name('notifications.index');
+        // Static segments are declared before the {notification} parameter so
+        // they are never captured as an id.
+        Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])
+            ->name('notifications.unread-count');
+        Route::patch('/notifications/read-all', [NotificationController::class, 'readAll'])
+            ->name('notifications.read-all');
         Route::patch('/notifications/{notification}/read', [NotificationController::class, 'read'])
             ->name('notifications.read');
         Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])

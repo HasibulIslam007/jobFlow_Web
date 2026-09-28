@@ -49,4 +49,32 @@ return [
             'timeout' => 5,
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | OCR (image/screenshot capture)
+    |--------------------------------------------------------------------------
+    |
+    | Separate from `provider` because OCR has different needs: it sends image
+    | bytes rather than a prompt, and its output is a plain transcription that
+    | the extraction prompt consumes afterwards.
+    |
+    | Supported: "gemini" (vision), "fake"
+    |
+    | NOTE: "fake" returns a fixed placeholder string. If image capture fails
+    | with "title and company must not be empty", check this is not still set
+    | to "fake" — the model is being handed a placeholder instead of a real
+    | transcription.
+    |
+    */
+    'ocr' => [
+        'provider' => env('OCR_PROVIDER', 'gemini'),
+        'api_key' => env('OCR_API_KEY', env('GEMINI_API_KEY', env('AI_API_KEY'))),
+        'model' => env('OCR_MODEL', env('GEMINI_MODEL', 'gemini-flash-lite-latest')),
+        'timeout' => (int) env('OCR_TIMEOUT', 60),
+        'base_url' => env(
+            'OCR_BASE_URL',
+            env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta')
+        ),
+    ],
 ];
