@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AssignRequestId;
 use App\Http\Responses\ApiResponse;
+use App\Services\AI\Exceptions\AIException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -32,6 +33,15 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Named limiter defined in AppServiceProvider::configureRateLimiting().
         $middleware->throttleApi('api');
+
+        // This service is API-only: there is no `login` route to redirect guests
+        // to, and Laravel's Authenticate middleware calls route('login') for any
+        // request that does not send `Accept: application/json` — which would
+        // surface as a 500 "Route [login] not defined" for plain curl, uptime
+        // probes, or anyone opening an API URL in a browser. Returning null makes
+        // the middleware raise an AuthenticationException, which the exception
+        // handler renders as the standard 401 JSON envelope (docs/04-api.md §1.2).
+        $middleware->redirectGuestsTo(fn (): ?string => null);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
@@ -73,6 +83,13 @@ return Application::configure(basePath: dirname(__DIR__))
                     status: 429,
                     meta: ['retry_after' => $e->getHeaders()['Retry-After'] ?? null],
                 ),
+                $e instanceof AIException => ApiResponse::error(
+                    message: $e->getMessage(),
+                    code: ApiResponse::codeForStatus($e->getCode() ?: 500),
+                    status: $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 500,
+                    meta: $e->getContext(),
+                ),
+
                 $e instanceof HttpExceptionInterface => ApiResponse::error(
                     message: $e->getMessage() !== '' ? $e->getMessage() : 'HTTP error.',
                     code: ApiResponse::codeForStatus($e->getStatusCode()),

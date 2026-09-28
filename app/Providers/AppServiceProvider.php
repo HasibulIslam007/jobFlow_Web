@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Services\AI\AIService;
+use App\Services\Web\Providers\HttpWebExtractor;
+use App\Services\Web\Providers\WebExtractorInterface;
+use App\Services\Web\UrlContentExtractor;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -15,7 +19,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(AIService::class, function ($app) {
+            return new AIService(config('ai', []));
+        });
+
+        // Pluggable web extraction: HttpWebExtractor fetches public pages
+        // over plain HTTP. Tests swap in FakeWebExtractor via the container.
+        $this->app->bind(WebExtractorInterface::class, HttpWebExtractor::class);
+
+        $this->app->bind(UrlContentExtractor::class, function ($app) {
+            return new UrlContentExtractor($app->make(WebExtractorInterface::class));
+        });
     }
 
     /**

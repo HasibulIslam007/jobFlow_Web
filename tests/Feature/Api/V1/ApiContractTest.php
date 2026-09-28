@@ -39,4 +39,17 @@ class ApiContractTest extends TestCase
             ->assertUnauthorized()
             ->assertJsonPath('code', 'unauthenticated');
     }
+
+    public function test_unauthenticated_requests_return_401_without_a_json_accept_header(): void
+    {
+        // Regression: Authenticate's redirect logic calls route('login') when the
+        // request does not send `Accept: application/json`. This service has no
+        // login route, so that must never turn into a 500 for non-SPA clients
+        // (curl, uptime probes, a browser opening an API URL directly).
+        foreach (['/api/v1/auth/me', '/api/v1/jobs', '/api/v1/dashboard'] as $uri) {
+            $this->get($uri, ['Accept' => 'text/html'])
+                ->assertUnauthorized()
+                ->assertJsonPath('code', 'unauthenticated');
+        }
+    }
 }
