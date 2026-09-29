@@ -45,13 +45,21 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # --- PHP extensions -------------------------------------------------------
-# NO `-j` on these: docker-php-ext-install forwards it to make, and a
-# parallel `install-modules` races the build (".libs: File exists", then
-# "cp: cannot stat 'modules/*'"). pgsql/pdo_pgsql/opcache are small, so a
-# serial make costs a few seconds and is deterministic.
-RUN docker-php-ext-install pgsql \
-    && docker-php-ext-install pdo_pgsql \
-    && docker-php-ext-install opcache
+# pgsql and pdo_pgsql are NOT in the base image (php -m shows only
+# pdo_sqlite), so both are compiled here — installed together in a single
+# docker-php-ext-install call, the official pattern; -j parallelises the C
+# compiles across cores.
+#
+# opcache is deliberately NOT reinstalled: php:8.5-cli already ships Zend
+# OPcache statically compiled in (php -m lists "Zend OPcache" and the
+# extension directory contains only sodium.so). Re-running
+# `docker-php-ext-install opcache` against this image is a no-op build:
+# configure completes, make produces no object files, modules/ stays empty,
+# and the install step dies with `cp: cannot stat 'modules/*'` (exit 2 —
+# verified on a pristine php:8.5-cli container).
+RUN docker-php-ext-install -j"$(nproc)" \
+    pdo_pgsql \
+    pgsql
 
 # opcache: the container is rebuilt on every deploy, so a warm in-memory
 # opcode cache never carries over — but it still pays off within a single
