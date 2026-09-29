@@ -86,7 +86,15 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
-            'url' => env('DB_URL'),
+            // Render (and most managed Postgres providers) inject the
+            // connection string as DATABASE_URL, not DB_URL. Reading both
+            // means the app connects with either name.
+            //
+            // `?:` rather than env()'s default so an EMPTY DB_URL (which is
+            // what phpunit.xml sets, and what a blank Render field looks
+            // like) falls through to DATABASE_URL instead of being passed to
+            // the connection parser as an empty DSN.
+            'url' => env('DB_URL') ?: env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', 'laravel'),

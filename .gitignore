@@ -33,3 +33,15 @@ composer.phar
 
 # Local SQLite scratch (not used: PostgreSQL is the database)
 /storage/*.sqlite
+
+# --- Deployment ---------------------------------------------------------
+# Render builds from the git repository, so the Docker runtime files MUST
+# be tracked: an ignored Dockerfile makes Render fail with
+#   "failed to read dockerfile: open Dockerfile: no such file or directory"
+# Dockerfile / .dockerignore contain no secrets — every env value lives in
+# the Render dashboard (or render.yaml's sync: false placeholders).
+#  · render.yaml        → only used by the Blueprint deploy flow; safe to
+#                         keep local if the service is created by hand.
+#  · DEPLOYMENT.md      → local documentation, not needed to build.
+/render.yaml
+/DEPLOYMENT.md

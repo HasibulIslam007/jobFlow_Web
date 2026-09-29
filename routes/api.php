@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AiSettingsController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\ApplicationController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -99,6 +100,18 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/jobs/{job}/match-resume/{resume}', [ResumeController::class, 'match'])
             ->middleware('throttle:ai')
             ->name('jobs.match-resume');
+
+        // BYOK AI settings (Phase 7). Every route is scoped to the caller —
+        // there is no id parameter, so one user can never address another's
+        // credential.
+        Route::get('/settings/ai', [AiSettingsController::class, 'show'])
+            ->name('settings.ai.show');
+        Route::put('/settings/ai', [AiSettingsController::class, 'update'])
+            ->name('settings.ai.update');
+        Route::post('/settings/ai/test', [AiSettingsController::class, 'test'])
+            ->name('settings.ai.test');
+        Route::delete('/settings/ai/gemini', [AiSettingsController::class, 'destroy'])
+            ->name('settings.ai.destroy');
 
         // Deadline reminders & notifications (Phase 5.7). Users only ever
         // see their own rows — enforced by scoped queries + policies.

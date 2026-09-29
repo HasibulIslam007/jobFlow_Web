@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\AiMode;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -12,7 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'ai_mode'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -78,5 +79,27 @@ class User extends Authenticatable
     public function reminders(): HasMany
     {
         return $this->hasMany(Reminder::class);
+    }
+
+    /**
+     * The user's own AI provider credentials (BYOK).
+     *
+     * One row per provider per user is guaranteed by the table's unique index,
+     * not only by this relation's shape.
+     *
+     * @return HasMany<UserAiCredential, $this>
+     */
+    public function aiCredentials(): HasMany
+    {
+        return $this->hasMany(UserAiCredential::class);
+    }
+
+    /**
+     * The user's AI routing mode. Parsed defensively so a bad column value
+     * degrades to the default instead of breaking every AI request.
+     */
+    public function aiMode(): AiMode
+    {
+        return AiMode::parse($this->ai_mode);
     }
 }

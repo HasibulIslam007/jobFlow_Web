@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\AI\AiCredentialResolver;
 use App\Services\AI\AIService;
 use App\Services\Web\Providers\HttpWebExtractor;
 use App\Services\Web\Providers\WebExtractorInterface;
@@ -19,8 +20,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->singleton(AiCredentialResolver::class);
+
         $this->app->singleton(AIService::class, function ($app) {
-            return new AIService(config('ai', []));
+            // The resolver is what makes BYOK work for every AI feature at
+            // once: AIService is the single chokepoint all of them pass
+            // through, so wiring it here covers capture, resume analysis and
+            // resume matching without touching any of them.
+            return new AIService(config('ai', []), $app->make(AiCredentialResolver::class));
         });
 
         // Pluggable web extraction: HttpWebExtractor fetches public pages

@@ -1,0 +1,39 @@
+# Keep the build context small and, more importantly, keep secrets and
+# local-only state out of the image layer.
+
+# --- Secrets: never bake these into an image ------------------------------
+.env
+.env.*
+!.env.example
+# Composer auth (private repos/packages) and any TLS keys dropped in storage/.
+auth.json
+storage/*.key
+
+# --- Local state that must never ship -------------------------------------
+*.log
+**/*.log
+.DS_Store
+storage/app/private/*
+storage/app/public/*
+!storage/app/private/.gitignore
+!storage/app/public/.gitignore
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+bootstrap/cache/*.php
+
+# --- Local tooling that is not part of the app ----------------------------
+.git
+.gitignore
+.github
+.DS_Store
+.phpunit.result.cache
+.phpunit.cache
+.claude
+.kilo
+scripts/
+docs/
+tests/
+node_modules
+vendor/
