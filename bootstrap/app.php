@@ -24,9 +24,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Sanctum SPA (cookie) authentication for the Next.js client.
-        $middleware->statefulApi();
-
         // Correlation id on every request: API responses expose it to the client.
         $middleware->api(prepend: [AssignRequestId::class]);
         $middleware->web(append: [AssignRequestId::class]);

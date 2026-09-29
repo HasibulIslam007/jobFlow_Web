@@ -15,7 +15,7 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'paths' => ['api/*'],
 
     'allowed_methods' => ['*'],
 
@@ -34,7 +34,7 @@ return [
 
     'max_age' => 3600,
 
-    // Required for Sanctum SPA cookie authentication from the Next.js origin.
-    'supports_credentials' => true,
+    // API authentication uses the Authorization header, not browser cookies.
+    'supports_credentials' => false,
 
 ];

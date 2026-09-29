@@ -184,7 +184,6 @@ export class ApiError extends Error {
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
-    credentials: 'include',                            // Sanctum SPA cookie
     headers: { Accept: 'application/json', 'Content-Type': 'application/json',
                'X-Requested-With': 'XMLHttpRequest', ...init.headers },
   });
@@ -195,7 +194,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
 Rules:
 
-1. **One** place knows the base URL, credentials mode and CSRF handling (`GET /sanctum/csrf-cookie` is called once before the first mutating request in a session).
+1. **One** place knows the base URL and bearer-token attachment. The token is stored in browser `localStorage` after login/register and removed on logout or a 401 from an authenticated request.
 2. `ApiError` carries `code`, so components branch on codes (`quota_exceeded` → upgrade CTA, `validation_failed` → field errors on the form, `unauthenticated` → redirect to `/login`).
 3. 422 responses are mapped into react-hook-form via `setError(field, …)` — never shown as a generic toast.
 4. Toasts are reserved for mutation outcomes ("Status updated", "Reminder created") and for unexpected failures; validation problems stay next to the field.

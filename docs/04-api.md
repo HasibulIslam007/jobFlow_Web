@@ -66,9 +66,8 @@
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| GET | `/sanctum/csrf-cookie` | – | Sets `XSRF-TOKEN` cookie before any mutating call (SPA flow) |
-| POST | `/v1/auth/register` | – | Create account (name, email, password, timezone) → 201 + session |
-| POST | `/v1/auth/login` | – | Email + password → session cookie (or `?token=1` for a bearer token) |
+| POST | `/v1/auth/register` | – | Create account → 201 + `{ token, user, authenticated }` |
+| POST | `/v1/auth/login` | – | Email + password → `{ token, user, authenticated }` |
 | POST | `/v1/auth/logout` | ✔ | Invalidate current session/token |
 | GET | `/v1/auth/me` | ✔ | Current user + prefs + quota usage + onboarding state |
 | POST | `/v1/auth/forgot-password` | – | Email a reset link (always 200, no user enumeration) |

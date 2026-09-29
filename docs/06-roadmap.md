@@ -48,7 +48,7 @@
 |---|---|---|
 | 1.1 | Migrations: `users` + `notification_preferences`; User model, enum casts, factory states | API |
 | 1.2 | Auth endpoints: register, login, logout, me, forgot/reset password, verify email, change password, sessions, API tokens | API |
-| 1.3 | Sanctum SPA configuration (`statefulApi`, stateful domains, session domain, CSRF) + named rate limiters | API |
+| 1.3 | Sanctum personal access tokens + named rate limiters | API |
 | 1.4 | `ApiResponse` envelope + global exception rendering (401/403/404/409/422/429/500) + `AssignRequestId` | API |
 | 1.5 | Profile endpoints: name, timezone, avatar upload to R2, notification preferences | API |
 | 1.6 | Scramble OpenAPI → `openapi-typescript` → `types/api.d.ts`, wired into CI | Contract |

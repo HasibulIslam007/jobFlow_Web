@@ -11,9 +11,9 @@ use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -30,20 +30,17 @@ class AuthController extends Controller
 
         event(new Registered($user));
 
-        Auth::guard('web')->login($user);
-
-        if ($request->hasSession()) {
-            $request->session()->regenerate();
-        }
+        $token = $user->createToken('jobflow-web')->plainTextToken;
 
         return ApiResponse::success([
+            'token' => $token,
             'user' => new UserResource($user),
             'authenticated' => true,
         ], 201);
     }
 
     /**
-     * Authenticate an existing user and create a session.
+     * Authenticate an existing user and create a personal access token.
      */
     public function login(LoginRequest $request): JsonResponse
     {
@@ -52,39 +49,32 @@ class AuthController extends Controller
             'password' => $request->string('password')->value(),
         ];
 
-        if (! Auth::guard('web')->attempt($credentials)) {
+        $user = User::query()->where('email', $credentials['email'])->first();
+
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => [trans('auth.failed')],
             ]);
         }
 
-        if ($request->hasSession()) {
-            $request->session()->regenerate();
-        }
-
-        /** @var User $user */
-        $user = Auth::guard('web')->user();
+        $token = $user->createToken('jobflow-web')->plainTextToken;
 
         return ApiResponse::success([
+            'token' => $token,
             'user' => new UserResource($user),
             'authenticated' => true,
         ]);
     }
 
     /**
-     * Log the current user out and invalidate the session.
+     * Revoke the current personal access token.
      */
     public function logout(Request $request): JsonResponse
     {
-        Auth::guard('web')->logout();
+        $currentToken = $request->user()->currentAccessToken();
 
-        if (Auth::guard('sanctum')->check()) {
-            Auth::guard('sanctum')->forgetUser();
-        }
-
-        if ($request->hasSession()) {
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+        if ($currentToken instanceof PersonalAccessToken) {
+            $currentToken->delete();
         }
 
         return ApiResponse::success([

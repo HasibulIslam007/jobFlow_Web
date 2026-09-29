@@ -333,15 +333,13 @@ job.deadline_at (UTC) ──► ScheduleDeadlineRemindersAction
 
 ### 7.1 Authentication & session (Decision #2, assumed approved)
 
-**Chosen:** Sanctum **SPA cookie authentication** (the pattern Laravel documents for a separate Next.js frontend).
+**Chosen:** Sanctum **personal access-token authentication**.
 
-- `app.jobflow.ai` (Next.js) and `api.jobflow.ai` (Laravel) share the registrable domain, so first-party httpOnly cookies work.
-- Config: `SANCTUM_STATEFUL_DOMAINS=app.jobflow.ai`, `SESSION_DOMAIN=.jobflow.ai`, `SESSION_SECURE_COOKIE=true`, `SESSION_SAME_SITE=lax`.
-- Flow: `GET /sanctum/csrf-cookie` → `POST /v1/auth/login` (session cookie set) → subsequent requests include the cookie; mutating requests send `X-XSRF-TOKEN`.
-- Laravel 13's `PreventRequestForgery` provides origin-aware verification on top of token CSRF.
-- Local dev: `SANCTUM_STATEFUL_DOMAINS=localhost:3000`, API at `localhost:8000` (cookies ignore port, same site).
-- **Token auth** (`personal_access_tokens`) is implemented from day one for non-browser clients (future mobile app, CLI) and for automated tests; tokens are hashed at rest by Sanctum, scoped by abilities, and revocable.
-- **Fallback plan:** if the frontend must live on a different registrable domain, switch to a Backend-for-Frontend where a Next.js Route Handler holds the API token in an httpOnly cookie and the browser only talks to `/api/*` on the Next.js origin.
+- Registration and login issue a token from `personal_access_tokens`.
+- The Next.js client stores the token in `localStorage` and sends `Authorization: Bearer <token>`.
+- Logout deletes only the current token; `/auth/me` and all protected routes use `auth:sanctum`.
+- Tokens are hashed at rest by Sanctum, scoped by abilities, and revocable.
+- Cross-origin cookies, `SANCTUM_STATEFUL_DOMAINS`, and CSRF bootstrap requests are not part of API authentication.
 
 ### 7.2 Authorization
 
@@ -361,8 +359,8 @@ job.deadline_at (UTC) ──► ScheduleDeadlineRemindersAction
 | Malicious uploads | MIME sniffing, size caps, extension allow-list, private bucket (no direct public serving), no server-side execution/rendering of uploaded files |
 | SSRF via URL capture | private/link-local range blocking after DNS resolution, redirect cap, timeout, body cap, content-type allow-list |
 | Stored-URL abuse | apply URLs sanitised to `http`/`https` only before persistence (no `javascript:`/`data:`) |
-| CSRF | Sanctum cookie flow + `PreventRequestForgery` origin checks; token-based clients are unaffected |
-| CORS | explicit origin allow-list (`app.jobflow.ai`, `localhost:3000`), `supports_credentials: true`, no wildcard with credentials |
+| CSRF | API authentication uses bearer tokens; no cross-origin cookie dependency |
+| CORS | explicit origin allow-list (`app.jobflow.ai`, `localhost:3000`), `supports_credentials: false` |
 | Rate limiting | `auth` 5/min per IP+email, `api` 60/min per user, `ai` 10/min + monthly quota, `upload` 20/hour |
 | Secret leakage | keys only in server env; `NEXT_PUBLIC_*` restricted to genuinely public values (API base URL); no AI keys in the browser, ever |
 | Enumeration/scraping of our API | cursor pagination limits, per-user quotas, generic 404s, request-id logging |

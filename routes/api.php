@@ -36,7 +36,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     // Liveness/readiness probe (no auth, booleans only).
     Route::get('/health', HealthController::class)->name('health');
 
-    // Authentication endpoints (Sanctum SPA session-based)
+    // Authentication endpoints (Sanctum personal access tokens)
     Route::prefix('auth')->name('auth.')->group(function (): void {
         Route::post('/register', [AuthController::class, 'register'])
             ->middleware('throttle:auth')
@@ -52,7 +52,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         });
     });
 
-    // Authenticated surface (session cookie or bearer token via Sanctum).
+    // Authenticated surface (bearer token via Sanctum).
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/user', fn (Request $request) => ApiResponse::success([
             'id' => $request->user()->id,

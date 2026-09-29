@@ -29,6 +29,7 @@ class AuthenticationTest extends TestCase
                         'email',
                         'created_at',
                     ],
+                    'token',
                     'authenticated',
                 ],
                 'meta' => [
@@ -45,7 +46,8 @@ class AuthenticationTest extends TestCase
             'name' => 'Jane Doe',
         ]);
 
-        $this->assertAuthenticated();
+        $this->assertNotEmpty($response->json('data.token'));
+        $this->assertGuest();
     }
 
     public function test_user_can_login(): void
@@ -69,6 +71,7 @@ class AuthenticationTest extends TestCase
                         'email',
                         'created_at',
                     ],
+                    'token',
                     'authenticated',
                 ],
                 'meta' => [
@@ -80,21 +83,23 @@ class AuthenticationTest extends TestCase
             ->assertJsonPath('data.user.email', 'user@example.com')
             ->assertJsonPath('data.authenticated', true);
 
-        $this->assertAuthenticatedAs($user);
+        $this->assertNotEmpty($response->json('data.token'));
+        $this->assertGuest();
     }
 
     public function test_user_can_logout(): void
     {
         $user = User::factory()->create();
+        $token = $user->createToken('test')->plainTextToken;
 
-        $response = $this->actingAs($user, 'web')
+        $response = $this->withToken($token)
             ->postJson('/api/v1/auth/logout');
 
         $response->assertOk()
             ->assertJsonPath('data.authenticated', false)
             ->assertJsonPath('data.message', 'Successfully logged out.');
 
-        $this->assertGuest();
+        $this->assertDatabaseCount('personal_access_tokens', 0);
     }
 
     public function test_user_can_access_profile(): void
@@ -103,8 +108,9 @@ class AuthenticationTest extends TestCase
             'name' => 'Profile User',
             'email' => 'profile@example.com',
         ]);
+        $token = $user->createToken('test')->plainTextToken;
 
-        $response = $this->actingAs($user, 'web')
+        $response = $this->withToken($token)
             ->getJson('/api/v1/auth/me');
 
         $response->assertOk()
@@ -134,6 +140,50 @@ class AuthenticationTest extends TestCase
         $response->assertStatus(401)
             ->assertJsonPath('code', 'unauthenticated')
             ->assertJsonPath('message', 'Unauthenticated.');
+    }
+
+    public function test_bearer_token_can_access_a_protected_endpoint(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('test')->plainTextToken;
+
+        $this->withToken($token)
+            ->getJson('/api/v1/user')
+            ->assertOk()
+            ->assertJsonPath('data.id', $user->id);
+    }
+
+    public function test_revoked_token_cannot_access_protected_routes(): void
+    {
+        $user = User::factory()->create();
+        $accessToken = $user->createToken('test');
+
+        $accessToken->accessToken->delete();
+
+        $this->withToken($accessToken->plainTextToken)
+            ->getJson('/api/v1/auth/me')
+            ->assertUnauthorized();
+    }
+
+    public function test_invalid_token_returns_unauthorized(): void
+    {
+        $this->withToken('invalid-token')
+            ->getJson('/api/v1/auth/me')
+            ->assertUnauthorized();
+    }
+
+    public function test_users_cannot_use_another_users_token(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $token = $user->createToken('test')->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->getJson('/api/v1/auth/me')
+            ->assertOk();
+
+        $this->assertSame($user->id, $response->json('data.user.id'));
+        $this->assertNotSame($otherUser->id, $response->json('data.user.id'));
     }
 
     public function test_invalid_login_fails(): void
